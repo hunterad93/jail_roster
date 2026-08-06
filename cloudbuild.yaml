@@ -1,0 +1,44 @@
+steps:
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster:$SHORT_SHA'
+      - '-t'
+      - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster:latest'
+      - '.'
+
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - '--all-tags'
+      - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster'
+
+  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+    entrypoint: 'gcloud'
+    args:
+      - 'run'
+      - 'deploy'
+      - 'jail-roster'
+      - '--image'
+      - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster:$SHORT_SHA'
+      - '--region'
+      - 'us-west1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--service-account'
+      - 'public-jail-roster-database@magnetic-mender-389117.iam.gserviceaccount.com'
+      - '--set-env-vars'
+      - 'SPREADSHEET_ID=1Qy5rPUrsIdlOWEzNJg6n6d_o5aJkpRf2WyBWE37MkLg'
+      - '--memory'
+      - '512Mi'
+      - '--timeout'
+      - '300'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '3'
+
+images:
+  - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster'

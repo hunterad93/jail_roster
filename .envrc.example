@@ -1,0 +1,10 @@
+# Copy to .envrc and fill in values, then run `direnv allow`
+
+# Google Sheets service account credentials JSON string
+export GOOGLE_CREDENTIALS='{"type":"service_account","project_id":"...","private_key_id":"...","private_key":"...","client_email":"...","client_id":"...","auth_uri":"...","token_uri":"...","auth_provider_x509_cert_url":"...","client_x509_cert_url":"..."}'
+
+# Or path to credentials file (used if GOOGLE_CREDENTIALS is not set)
+# export GOOGLE_CREDENTIALS_FILE="credentials.json"
+
+# Google Sheet ID (from the URL: https://docs.google.com/spreadsheets/d/SPREADSHEET_ID/edit)
+export SPREADSHEET_ID=""

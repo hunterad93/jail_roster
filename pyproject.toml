@@ -1,0 +1,16 @@
+[project]
+name = "jail-roster"
+version = "0.1.0"
+description = "Scrapes Missoula-area jail rosters and syncs to Google Sheets"
+requires-python = ">=3.12"
+dependencies = [
+    "beautifulsoup4>=4.15.0",
+    "fastapi>=0.141.1",
+    "google-auth>=2.56.2",
+    "gspread>=6.2.1",
+    "httpx>=0.28.1",
+    "lxml>=6.1.1",
+    "pdfplumber>=0.11.10",
+    "rapidfuzz>=3.14.5",
+    "uvicorn>=0.52.1",
+]
