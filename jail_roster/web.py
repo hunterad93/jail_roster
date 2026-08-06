@@ -87,8 +87,30 @@ def _verify_oidc(authorization: str | None):
 def trigger_scrape(authorization: str | None = Header(default=None)):
     _verify_oidc(authorization)
     spreadsheet_id = os.environ["SPREADSHEET_ID"]
-    inmates, metadata = scrape_all()
     client = get_client()
+
+    old_inmates, _ = _load_from_sheet()
+
+    inmates, metadata = scrape_all()
+
+    failed_counties = {m["county"] for m in metadata if m["status"] == "error"}
+    if failed_counties:
+        county_to_jail = {
+            "Missoula": "Missoula County", "Flathead": "Flathead County",
+            "Ravalli": "Ravalli County", "Gallatin": "Gallatin County",
+            "Park": "Park County", "Lake": "Lake County",
+            "Lewis & Clark": "Lewis & Clark County", "Deer Lodge": "Deer Lodge County",
+            "Wheatland": "Wheatland County", "Jefferson": "Jefferson County",
+            "Broadwater": "Broadwater County", "Glacier": "Glacier County",
+            "Yellowstone": "Yellowstone County",
+        }
+        failed_jails = {county_to_jail[c] for c in failed_counties if c in county_to_jail}
+        stale_rows = [i for i in old_inmates if i.get("jail") in failed_jails]
+        inmates.extend(stale_rows)
+        for m in metadata:
+            if m["status"] == "error":
+                m["count"] = sum(1 for i in old_inmates if i.get("jail") == county_to_jail.get(m["county"]))
+
     sync_to_sheet(client, spreadsheet_id, inmates)
     sync_metadata(client, spreadsheet_id, metadata)
     _refresh_cache()
@@ -349,6 +371,19 @@ _DASHBOARD_HTML = """\
     white-space: nowrap;
   }
 
+  .stale-row td { opacity: 0.65; }
+  .stale-badge {
+    display: inline-block;
+    padding: 1px 5px;
+    border-radius: 3px;
+    font-size: 0.65rem;
+    font-weight: 600;
+    background: #422006;
+    color: #fbbf24;
+    margin-left: 6px;
+    vertical-align: middle;
+  }
+
   .jail-badge {
     display: inline-block;
     padding: 2px 8px;
@@ -549,6 +584,7 @@ let currentOffset = 0;
 let currentQuery = '';
 let hasMore = false;
 let jailFilter = '';
+let staleJails = new Set();
 const PAGE_SIZE = 100;
 
 const searchInput = document.getElementById('search');
@@ -614,15 +650,16 @@ function renderResults(results, total, query) {
     const name = [r.last_name, [r.first_name, r.middle_name].filter(Boolean).join(' ')].filter(Boolean).join(', ');
     const jailClass = JAIL_CLASSES[r.jail] || 'jail-default';
     const jailShort = (r.jail || '').replace(' County', '');
+    const isStale = staleJails.has(r.jail);
 
-    html += '<tr>';
+    html += '<tr' + (isStale ? ' class="stale-row"' : '') + '>';
     if (isSearch) {
       const score = r._score || 0;
       const cls = score >= 80 ? 'score-high' : score >= 60 ? 'score-medium' : 'score-low';
       html += '<td><span class="match-score ' + cls + '">' + Math.round(score) + '</span></td>';
     }
     html += '<td class="name-cell">' + esc(name) + '</td>';
-    html += '<td><span class="jail-badge ' + jailClass + '">' + esc(jailShort) + '</span></td>';
+    html += '<td><span class="jail-badge ' + jailClass + '">' + esc(jailShort) + '</span>' + (isStale ? '<span class="stale-badge">STALE</span>' : '') + '</td>';
     html += '<td>' + esc(r.booking_date || '') + '</td>';
     html += '<td class="charges-cell">' + esc(r.charges || '') + '</td>';
     html += '<td class="bond-cell">' + esc(r.bond || '') + '</td>';
@@ -672,6 +709,10 @@ function timeAgo(utcStr) {
 
 function renderSyncStatus(syncStatus) {
   if (!syncStatus || !syncStatus.length) return;
+
+  staleJails = new Set(
+    syncStatus.filter(s => s.status === 'error').map(s => s.county + ' County')
+  );
 
   const panel = document.getElementById('status-panel');
   panel.style.display = '';

@@ -81,7 +81,7 @@ def scrape() -> list[dict]:
     inmates = []
     for record in all_records.values():
         last, first, middle = _parse_name(record.get("name", ""))
-        hold_reasons = record.get("hold_reasons", "")
+        hold_reasons = record.get("hold_reasons") or ""
         charges, bond = _parse_hold_reasons(hold_reasons)
 
         inmate = Inmate(

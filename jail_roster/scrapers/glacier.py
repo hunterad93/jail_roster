@@ -1,6 +1,7 @@
 import io
 import logging
 import re
+import time
 
 import httpx
 import pdfplumber
@@ -18,17 +19,30 @@ INMATE_RE = re.compile(
 
 
 def _find_pdf_url() -> str:
-    resp = httpx.get(
-        WP_MEDIA_URL,
-        params={"search": "active_inmate_report", "per_page": 1, "mime_type": "application/pdf"},
-        timeout=15,
-        follow_redirects=True,
-    )
-    resp.raise_for_status()
-    results = resp.json()
-    if results:
-        return results[0]["source_url"]
-    raise ValueError("Could not find Glacier County jail roster PDF via WordPress API")
+    for attempt in range(3):
+        if attempt > 0:
+            time.sleep(2)
+        resp = httpx.get(
+            WP_MEDIA_URL,
+            params={"search": "active_inmate_report", "per_page": 1, "mime_type": "application/pdf"},
+            timeout=20,
+            follow_redirects=True,
+        )
+        if resp.status_code != 200:
+            log.warning("%s: WP media API returned %d (attempt %d)", JAIL_NAME, resp.status_code, attempt + 1)
+            continue
+        content_type = resp.headers.get("content-type", "")
+        if "json" not in content_type:
+            log.warning("%s: WP media API returned non-JSON content-type %s (attempt %d)", JAIL_NAME, content_type, attempt + 1)
+            continue
+        try:
+            results = resp.json()
+        except Exception:
+            log.warning("%s: WP media API returned invalid JSON (attempt %d)", JAIL_NAME, attempt + 1)
+            continue
+        if results and isinstance(results, list):
+            return results[0]["source_url"]
+    raise ValueError("Could not find Glacier County jail roster PDF after 3 attempts")
 
 
 def scrape() -> list[dict]:
@@ -39,6 +53,10 @@ def scrape() -> list[dict]:
 
     resp = httpx.get(pdf_url, timeout=30, follow_redirects=True)
     resp.raise_for_status()
+
+    content_type = resp.headers.get("content-type", "")
+    if "pdf" not in content_type and not resp.content[:5] == b"%PDF-":
+        raise ValueError(f"Expected PDF but got content-type: {content_type}")
 
     pdf = pdfplumber.open(io.BytesIO(resp.content))
 
