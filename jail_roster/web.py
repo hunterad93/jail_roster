@@ -78,7 +78,7 @@ def trigger_scrape(authorization: str | None = Header(default=None)):
             "Park": "Park County", "Lake": "Lake County",
             "Lewis & Clark": "Lewis & Clark County", "Deer Lodge": "Deer Lodge County",
             "Wheatland": "Wheatland County", "Jefferson": "Jefferson County",
-            "Broadwater": "Broadwater County", "Glacier": "Glacier County",
+            "Broadwater": "Broadwater County",
             "Yellowstone": "Yellowstone County",
         }
         failed_jails = {county_to_jail[c] for c in failed_counties if c in county_to_jail}
@@ -592,6 +592,29 @@ _DASHBOARD_HTML = """\
     display: flex;
     gap: 3px;
   }
+
+  .disclaimer {
+    max-width: 600px;
+    margin: 0 auto 20px;
+    padding: 12px 16px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+  }
+
+  .disclaimer summary {
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.8rem;
+    color: var(--text-muted);
+  }
+
+  .disclaimer summary:hover { color: var(--text); }
+
+  .disclaimer p { margin-top: 8px; }
 </style>
 </head>
 <body>
@@ -600,6 +623,12 @@ _DASHBOARD_HTML = """\
     <h1>Jail Roster Search</h1>
     <p>Montana Detention Facilities</p>
   </header>
+
+  <details class="disclaimer">
+    <summary>Disclaimer</summary>
+    <p>This tool aggregates publicly available jail roster data from county sheriff websites across Montana. It is not an official government resource. Data may be incomplete, delayed, or inaccurate. Always verify information through official county sources before relying on it.</p>
+    <p>Some counties (currently Glacier County) are excluded because their websites use bot protection (Cloudflare/SiteGround) that blocks automated access.</p>
+  </details>
 
   <div class="stats-bar" id="stats-bar"></div>
 
