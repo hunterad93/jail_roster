@@ -2,11 +2,10 @@ import io
 import logging
 import re
 
-import httpx
 import pdfplumber
 from bs4 import BeautifulSoup
 
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_get
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ BOND_RE = re.compile(r"^[▪■]\s+(.+)$")
 
 
 def _find_pdf_url() -> str:
-    resp = httpx.get(SHERIFF_URL, timeout=30, follow_redirects=True)
+    resp = http_get(SHERIFF_URL)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
     for link in soup.find_all("a", href=True):
@@ -41,7 +40,7 @@ def scrape() -> list[dict]:
     pdf_url = _find_pdf_url()
     log.info("Found PDF at %s", pdf_url)
 
-    resp = httpx.get(pdf_url, timeout=30, follow_redirects=True)
+    resp = http_get(pdf_url)
     resp.raise_for_status()
 
     pdf = pdfplumber.open(io.BytesIO(resp.content))

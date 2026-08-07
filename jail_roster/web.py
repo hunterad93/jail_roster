@@ -1,5 +1,4 @@
 import logging
-import os
 import threading
 import time
 
@@ -7,10 +6,10 @@ from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import HTMLResponse
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from rapidfuzz import fuzz, process
+from rapidfuzz import fuzz
 
 from jail_roster.scrapers import scrape_all
-from jail_roster.sheets import get_client, sync_to_sheet, sync_metadata
+from jail_roster.storage import read_inmates, read_metadata, write_inmates, write_metadata
 
 log = logging.getLogger(__name__)
 
@@ -22,35 +21,15 @@ _last_updated: float = 0
 _lock = threading.Lock()
 
 
-def _load_from_sheet() -> tuple[list[dict], list[dict]]:
-    spreadsheet_id = os.environ["SPREADSHEET_ID"]
-    client = get_client()
-    workbook = client.open_by_key(spreadsheet_id)
-
-    rows = workbook.sheet1.get_all_values()
-    inmates = []
-    if rows:
-        headers = [h.lower().replace(" ", "_") for h in rows[0]]
-        inmates = [dict(zip(headers, row)) for row in rows[1:]]
-
-    status = []
-    try:
-        ws = workbook.worksheet("Sync Status")
-        srows = ws.get_all_values()
-        if srows:
-            sheaders = [h.lower().replace(" ", "_") for h in srows[0]]
-            status = [dict(zip(sheaders, row)) for row in srows[1:]]
-    except Exception:
-        pass
-
-    return inmates, status
+def _load_data() -> tuple[list[dict], list[dict]]:
+    return read_inmates(), read_metadata()
 
 
 def _refresh_cache():
     global _inmates, _sync_status, _last_updated
     with _lock:
         try:
-            _inmates, _sync_status = _load_from_sheet()
+            _inmates, _sync_status = _load_data()
             _last_updated = time.time()
             log.info("Cache refreshed: %d inmates", len(_inmates))
         except Exception:
@@ -86,10 +65,8 @@ def _verify_oidc(authorization: str | None):
 @app.post("/api/scrape")
 def trigger_scrape(authorization: str | None = Header(default=None)):
     _verify_oidc(authorization)
-    spreadsheet_id = os.environ["SPREADSHEET_ID"]
-    client = get_client()
 
-    old_inmates, _ = _load_from_sheet()
+    old_inmates, _ = _load_data()
 
     inmates, metadata = scrape_all()
 
@@ -111,8 +88,8 @@ def trigger_scrape(authorization: str | None = Header(default=None)):
             if m["status"] == "error":
                 m["count"] = sum(1 for i in old_inmates if i.get("jail") == county_to_jail.get(m["county"]))
 
-    sync_to_sheet(client, spreadsheet_id, inmates)
-    sync_metadata(client, spreadsheet_id, metadata)
+    write_inmates(inmates)
+    write_metadata(metadata)
     _refresh_cache()
     return {"status": "ok", "count": len(inmates)}
 
@@ -848,16 +825,16 @@ function renderSyncStatus(syncStatus) {
   for (const s of syncStatus) {
     html += '<div class="status-row">';
     html += '<span class="status-dot ' + s.status + '"></span>';
-    if (s.source_url) {
-      html += '<span class="status-county"><a href="' + esc(s.source_url) + '" target="_blank">' + esc(s.county) + '</a></span>';
+    if (s.url || s.source_url) {
+      html += '<span class="status-county"><a href="' + esc(s.url || s.source_url) + '" target="_blank">' + esc(s.county) + '</a></span>';
     } else {
       html += '<span class="status-county">' + esc(s.county) + '</span>';
     }
-    html += '<span class="status-count">' + esc(s.inmate_count || '0') + '</span>';
+    html += '<span class="status-count">' + esc(s.count || s.inmate_count || '0') + '</span>';
     if (s.status === 'error' || s.status === 'warning') {
       html += '<span class="status-error">' + esc(s.error || 'Unknown error') + '</span>';
     } else {
-      html += '<span class="status-time">' + timeAgo(s.last_sync) + '</span>';
+      html += '<span class="status-time">' + timeAgo(s.last_success || s.last_sync) + '</span>';
     }
     html += '</div>';
   }

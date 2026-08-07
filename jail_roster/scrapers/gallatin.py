@@ -2,9 +2,7 @@ import logging
 import re
 from datetime import date
 
-import httpx
-
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_client
 
 log = logging.getLogger(__name__)
 
@@ -49,7 +47,7 @@ def _parse_hold_reasons(html: str) -> tuple[str, str]:
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
 
-    with httpx.Client(timeout=30) as client:
+    with http_client() as client:
         xsrf_resp = client.get(
             "https://portal-mt-gallatin-so.centralsquarecloudgov.com/api/portal/config/xsrf_token"
         )

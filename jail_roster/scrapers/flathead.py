@@ -1,10 +1,9 @@
 import logging
 import re
 
-import httpx
 from bs4 import BeautifulSoup
 
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_get
 
 log = logging.getLogger(__name__)
 
@@ -57,7 +56,7 @@ def _get_charges(article) -> str:
 
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
-    resp = httpx.get(URL, timeout=30)
+    resp = http_get(URL)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
 

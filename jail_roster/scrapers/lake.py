@@ -2,10 +2,9 @@ import io
 import logging
 import re
 
-import httpx
 import pdfplumber
 
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_get
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ CHARGE_RE = re.compile(r"^\d{2}-\d+-\d+|^[A-Z]{2,3}\s+Hold")
 
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
-    resp = httpx.get(URL, timeout=30, follow_redirects=True)
+    resp = http_get(URL)
     resp.raise_for_status()
 
     pdf = pdfplumber.open(io.BytesIO(resp.content))

@@ -2,9 +2,7 @@ import logging
 import re
 from datetime import datetime, timezone
 
-import httpx
-
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_client
 
 log = logging.getLogger(__name__)
 
@@ -53,7 +51,7 @@ def _parse_hold_reasons(html: str) -> tuple[str, str]:
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
 
-    with httpx.Client(timeout=30) as client:
+    with http_client() as client:
         client.get(f"{BASE_URL}/init")
 
         now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z")

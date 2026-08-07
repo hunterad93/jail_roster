@@ -2,9 +2,7 @@ import csv
 import io
 import logging
 
-import httpx
-
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_get
 
 log = logging.getLogger(__name__)
 
@@ -14,7 +12,7 @@ JAIL_NAME = "Yellowstone County"
 
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
-    resp = httpx.get(URL, timeout=30, follow_redirects=True)
+    resp = http_get(URL)
     resp.raise_for_status()
 
     reader = csv.DictReader(io.StringIO(resp.text))

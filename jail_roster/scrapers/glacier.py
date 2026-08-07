@@ -3,10 +3,9 @@ import logging
 import re
 import time
 
-import httpx
 import pdfplumber
 
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_get
 
 log = logging.getLogger(__name__)
 
@@ -19,16 +18,15 @@ INMATE_RE = re.compile(
 
 
 def _find_pdf_url() -> str:
-    for attempt in range(3):
+    for attempt in range(5):
         if attempt > 0:
             time.sleep(2)
-        resp = httpx.get(
+        resp = http_get(
             WP_MEDIA_URL,
             params={"search": "active_inmate_report", "per_page": 1, "mime_type": "application/pdf"},
             timeout=20,
-            follow_redirects=True,
         )
-        if resp.status_code != 200:
+        if resp.status_code not in (200, 202):
             log.warning("%s: WP media API returned %d (attempt %d)", JAIL_NAME, resp.status_code, attempt + 1)
             continue
         content_type = resp.headers.get("content-type", "")
@@ -42,7 +40,7 @@ def _find_pdf_url() -> str:
             continue
         if results and isinstance(results, list):
             return results[0]["source_url"]
-    raise ValueError("Could not find Glacier County jail roster PDF after 3 attempts")
+    raise ValueError("Could not find Glacier County jail roster PDF after 5 attempts")
 
 
 def scrape() -> list[dict]:
@@ -51,14 +49,24 @@ def scrape() -> list[dict]:
     pdf_url = _find_pdf_url()
     log.info("Found PDF at %s", pdf_url)
 
-    resp = httpx.get(pdf_url, timeout=30, follow_redirects=True)
-    resp.raise_for_status()
-
-    content_type = resp.headers.get("content-type", "")
-    if "pdf" not in content_type and not resp.content[:5] == b"%PDF-":
-        raise ValueError(f"Expected PDF but got content-type: {content_type}")
-
-    pdf = pdfplumber.open(io.BytesIO(resp.content))
+    pdf = None
+    for attempt in range(3):
+        if attempt > 0:
+            time.sleep(2)
+        resp = http_get(pdf_url)
+        resp.raise_for_status()
+        content_type = resp.headers.get("content-type", "")
+        if "pdf" not in content_type and resp.content[:5] != b"%PDF-":
+            log.warning("%s: PDF download returned content-type %s (attempt %d)", JAIL_NAME, content_type, attempt + 1)
+            continue
+        try:
+            pdf = pdfplumber.open(io.BytesIO(resp.content))
+            break
+        except Exception:
+            log.warning("%s: PDF failed to parse (attempt %d)", JAIL_NAME, attempt + 1)
+            continue
+    if pdf is None:
+        raise ValueError("Could not download valid Glacier County PDF after 3 attempts")
 
     all_lines = []
     for page in pdf.pages:

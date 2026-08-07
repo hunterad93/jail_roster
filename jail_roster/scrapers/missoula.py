@@ -1,9 +1,8 @@
 import logging
 
-import httpx
 from bs4 import BeautifulSoup
 
-from jail_roster.scrapers.base import Inmate
+from jail_roster.scrapers.base import Inmate, http_client
 
 log = logging.getLogger(__name__)
 
@@ -23,7 +22,7 @@ def _parse_name(raw: str) -> tuple[str, str, str]:
 
 
 def _get_all_inmates_page() -> str:
-    client = httpx.Client(timeout=30, follow_redirects=True)
+    client = http_client()
     resp = client.get(URL)
     resp.raise_for_status()
     soup = BeautifulSoup(resp.text, "lxml")
