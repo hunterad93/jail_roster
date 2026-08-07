@@ -13,7 +13,6 @@ from jail_roster.scrapers.deer_lodge import scrape as scrape_deer_lodge
 from jail_roster.scrapers.wheatland import scrape as scrape_wheatland
 from jail_roster.scrapers.jefferson import scrape as scrape_jefferson
 from jail_roster.scrapers.broadwater import scrape as scrape_broadwater
-from jail_roster.scrapers.glacier import scrape as scrape_glacier
 from jail_roster.scrapers.yellowstone import scrape as scrape_yellowstone
 
 log = logging.getLogger(__name__)
@@ -30,7 +29,6 @@ SCRAPERS = [
     ("Wheatland", scrape_wheatland, "https://wheatlandcomt.gov/sheriff/"),
     ("Jefferson", scrape_jefferson, "https://jefferson-so-mt.zuercherportal.com/#/inmates"),
     ("Broadwater", scrape_broadwater, "https://www.broadwatercountysheriff.org/roster.php"),
-    ("Glacier", scrape_glacier, "https://glaciercountymt.gov/"),
     ("Yellowstone", scrape_yellowstone, "https://www.yellowstonecountymt.gov/sheriff/detention/dcsearch.asp"),
 ]
 
