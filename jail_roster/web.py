@@ -228,18 +228,7 @@ _DASHBOARD_HTML = """\
   }
 
   .stat-chip {
-    cursor: pointer;
-    transition: border-color 0.15s, background 0.15s;
-  }
-
-  .stat-chip:hover {
-    border-color: var(--accent);
-  }
-
-  .stat-chip.active {
-    border-color: var(--accent);
-    background: var(--accent-dim);
-    color: var(--text);
+    cursor: default;
   }
 
   .stat-chip .count {
@@ -665,7 +654,6 @@ let currentTotal = 0;
 let currentOffset = 0;
 let currentQuery = '';
 let hasMore = false;
-let jailFilter = '';
 let staleJails = new Set();
 const PAGE_SIZE = 100;
 
@@ -690,7 +678,7 @@ async function doSearch(append) {
   resultsDiv.classList.add('loading');
 
   try {
-    const resp = await fetch('/api/search?q=' + encodeURIComponent(q) + '&jail=' + encodeURIComponent(jailFilter) + '&limit=' + PAGE_SIZE + '&offset=' + currentOffset);
+    const resp = await fetch('/api/search?q=' + encodeURIComponent(q) + '&limit=' + PAGE_SIZE + '&offset=' + currentOffset);
     const data = await resp.json();
     currentResults = currentResults.concat(data.results);
     currentTotal = data.total;
@@ -711,17 +699,16 @@ function loadMore() {
 function renderResults(results, total, query) {
   if (!results.length) {
     metaDiv.textContent = '';
-    resultsDiv.innerHTML = query || jailFilter
+    resultsDiv.innerHTML = query
       ? '<div class="empty-state"><p>No matches found</p></div>'
       : '<div class="empty-state"><p>Loading...</p></div>';
     return;
   }
 
   const isSearch = query.length > 0;
-  const filterNote = jailFilter ? ' in ' + jailFilter.replace(' County', '') : '';
   metaDiv.innerHTML = isSearch
-    ? '<span>Showing ' + results.length + ' of ' + total + ' matches' + filterNote + '</span>'
-    : '<span>Showing ' + results.length + ' of ' + total + ' inmates' + filterNote + '</span>';
+    ? '<span>Showing ' + results.length + ' of ' + total + ' matches</span>'
+    : '<span>Showing ' + results.length + ' of ' + total + ' inmates</span>';
 
   let html = '<table class="results-table"><thead><tr>';
   if (isSearch) html += '<th>Match</th>';
@@ -790,14 +777,6 @@ function esc(s) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
-}
-
-function toggleJailFilter(jail) {
-  jailFilter = (jail && jailFilter === jail) ? '' : jail;
-  document.querySelectorAll('.stat-chip').forEach(el => {
-    el.classList.toggle('active', el.dataset.jail !== '' && el.dataset.jail === jailFilter);
-  });
-  doSearch(false);
 }
 
 function toggleStatus() {
@@ -875,15 +854,12 @@ async function loadStats() {
     const resp = await fetch('/api/stats');
     const data = await resp.json();
     const bar = document.getElementById('stats-bar');
-    let html = '<div class="stat-chip" data-jail="">Total <span class="count">' + data.total + '</span></div>';
+    let html = '<div class="stat-chip">Total <span class="count">' + data.total + '</span></div>';
     for (const [jail, count] of Object.entries(data.by_jail)) {
       const short = jail.replace(' County', '');
-      html += '<div class="stat-chip" data-jail="' + esc(jail) + '">' + esc(short) + ' <span class="count">' + count + '</span></div>';
+      html += '<div class="stat-chip">' + esc(short) + ' <span class="count">' + count + '</span></div>';
     }
     bar.innerHTML = html;
-    bar.querySelectorAll('.stat-chip').forEach(chip => {
-      chip.addEventListener('click', () => toggleJailFilter(chip.dataset.jail));
-    });
     renderSyncStatus(data.sync_status);
   } catch (e) {}
 }
