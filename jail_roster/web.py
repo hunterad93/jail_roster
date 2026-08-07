@@ -428,10 +428,86 @@ _DASHBOARD_HTML = """\
   .empty-state p { font-size: 0.9rem; }
 
   @media (max-width: 700px) {
+    .container { padding: 12px 8px; }
+
+    header { padding: 16px 0 12px; }
+    header h1 { font-size: 1.3rem; }
+    header p { font-size: 0.8rem; }
+
+    .stats-bar { gap: 6px; margin-bottom: 16px; }
+    .stat-chip {
+      padding: 8px 12px;
+      font-size: 0.7rem;
+      border-radius: 16px;
+    }
+    .stat-chip .count { font-size: 0.8rem; }
+
+    .search-wrap { margin-bottom: 16px; }
+    #search { padding: 12px 12px 12px 40px; font-size: 0.9rem; }
+    .search-wrap svg { left: 12px; width: 18px; height: 18px; }
+
+    .status-panel { margin-bottom: 16px; }
+
     .results-table { font-size: 0.8rem; }
     .results-table td, .results-table th { padding: 8px 10px; }
     .charges-cell, .bond-cell, .charges-head, .bond-head { display: none; }
-    header h1 { font-size: 1.4rem; }
+
+    .name-cell { white-space: normal; word-break: break-word; }
+
+    .results-meta { font-size: 0.75rem; }
+  }
+
+  .card-list {
+    display: none;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .inmate-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+  }
+  .inmate-card.stale-row { opacity: 0.65; }
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 8px;
+    margin-bottom: 4px;
+  }
+  .card-name {
+    font-weight: 600;
+    font-size: 0.85rem;
+    line-height: 1.3;
+  }
+  .card-details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 12px;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+  }
+  .card-score {
+    margin-right: 4px;
+  }
+
+  @media (max-width: 480px) {
+    .stats-bar {
+      gap: 5px;
+      justify-content: flex-start;
+    }
+    .stat-chip {
+      padding: 6px 10px;
+      font-size: 0.65rem;
+    }
+    .stat-chip .count { font-size: 0.75rem; }
+
+    .results-table { display: none; }
+    .card-list { display: flex; }
+
+    .status-row { padding: 6px 10px; font-size: 0.75rem; }
+    .status-county { min-width: 80px; }
   }
 
   .loading { opacity: 0.5; pointer-events: none; }
@@ -643,7 +719,7 @@ function renderResults(results, total, query) {
 
   let html = '<table class="results-table"><thead><tr>';
   if (isSearch) html += '<th>Match</th>';
-  html += '<th>Name</th><th>Jail</th><th>Booking Date</th><th class="charges-head">Charges</th><th class="bond-head">Bond</th>';
+  html += '<th>Name</th><th>Jail</th><th class="booking-date-head">Booking Date</th><th class="charges-head">Charges</th><th class="bond-head">Bond</th>';
   html += '</tr></thead><tbody>';
 
   for (const r of results) {
@@ -660,7 +736,7 @@ function renderResults(results, total, query) {
     }
     html += '<td class="name-cell">' + esc(name) + '</td>';
     html += '<td><span class="jail-badge ' + jailClass + '">' + esc(jailShort) + '</span>' + (isStale ? '<span class="stale-badge">STALE</span>' : '') + '</td>';
-    html += '<td>' + esc(r.booking_date || '') + '</td>';
+    html += '<td class="booking-date-cell">' + esc(r.booking_date || '') + '</td>';
     html += '<td class="charges-cell">' + esc(r.charges || '') + '</td>';
     html += '<td class="bond-cell">' + esc(r.bond || '') + '</td>';
     html += '</tr>';
@@ -668,11 +744,40 @@ function renderResults(results, total, query) {
 
   html += '</tbody></table>';
 
+  let cards = '<div class="card-list">';
+  for (const r of results) {
+    const name = [r.last_name, [r.first_name, r.middle_name].filter(Boolean).join(' ')].filter(Boolean).join(', ');
+    const jailClass = JAIL_CLASSES[r.jail] || 'jail-default';
+    const jailShort = (r.jail || '').replace(' County', '');
+    const isStale = staleJails.has(r.jail);
+
+    cards += '<div class="inmate-card' + (isStale ? ' stale-row' : '') + '">';
+    cards += '<div class="card-top">';
+    cards += '<span class="card-name">';
+    if (isSearch && r._score) {
+      const score = r._score;
+      const cls = score >= 80 ? 'score-high' : score >= 60 ? 'score-medium' : 'score-low';
+      cards += '<span class="match-score card-score ' + cls + '">' + Math.round(score) + '</span>';
+    }
+    cards += esc(name) + '</span>';
+    cards += '<span class="jail-badge ' + jailClass + '">' + esc(jailShort) + '</span>';
+    if (isStale) cards += '<span class="stale-badge">STALE</span>';
+    cards += '</div>';
+    cards += '<div class="card-details">';
+    if (r.booking_date) cards += '<span>' + esc(r.booking_date) + '</span>';
+    if (r.charges) cards += '<span>' + esc(r.charges) + '</span>';
+    if (r.bond) cards += '<span>' + esc(r.bond) + '</span>';
+    cards += '</div>';
+    cards += '</div>';
+  }
+  cards += '</div>';
+
+  let loadMoreBtn = '';
   if (hasMore) {
-    html += '<button class="load-more" onclick="loadMore()">Load more (' + (total - results.length) + ' remaining)</button>';
+    loadMoreBtn = '<button class="load-more" onclick="loadMore()">Load more (' + (total - results.length) + ' remaining)</button>';
   }
 
-  resultsDiv.innerHTML = html;
+  resultsDiv.innerHTML = html + cards + loadMoreBtn;
 }
 
 function esc(s) {
