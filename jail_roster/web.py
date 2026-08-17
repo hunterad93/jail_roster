@@ -66,7 +66,7 @@ def _verify_oidc(authorization: str | None):
 def trigger_scrape(authorization: str | None = Header(default=None)):
     _verify_oidc(authorization)
 
-    old_inmates, _ = _load_data()
+    old_inmates, old_metadata = _load_data()
 
     inmates, metadata = scrape_all()
 
@@ -81,12 +81,14 @@ def trigger_scrape(authorization: str | None = Header(default=None)):
             "Broadwater": "Broadwater County",
             "Yellowstone": "Yellowstone County",
         }
+        old_success_by_county = {m["county"]: m.get("last_success", "") for m in old_metadata}
         failed_jails = {county_to_jail[c] for c in failed_counties if c in county_to_jail}
         stale_rows = [i for i in old_inmates if i.get("jail") in failed_jails]
         inmates.extend(stale_rows)
         for m in metadata:
             if m["status"] == "error":
                 m["count"] = sum(1 for i in old_inmates if i.get("jail") == county_to_jail.get(m["county"]))
+                m["last_success"] = old_success_by_county.get(m["county"], "")
 
     write_inmates(inmates)
     write_metadata(metadata)
@@ -840,7 +842,9 @@ function renderSyncStatus(syncStatus) {
     }
     html += '<span class="status-count">' + esc(s.count || s.inmate_count || '0') + '</span>';
     if (s.status === 'error' || s.status === 'warning') {
-      html += '<span class="status-error">' + esc(s.error || 'Unknown error') + '</span>';
+      let errText = esc(s.error || 'Unknown error');
+      if (s.last_success) errText += ' · last ok ' + timeAgo(s.last_success);
+      html += '<span class="status-error">' + errText + '</span>';
     } else {
       html += '<span class="status-time">' + timeAgo(s.last_success || s.last_sync) + '</span>';
     }
