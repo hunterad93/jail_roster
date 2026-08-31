@@ -2,7 +2,7 @@ from dataclasses import dataclass, asdict
 
 import httpx
 
-USER_AGENT = "Mozilla/5.0 (compatible; MTJailRoster/1.0; +https://github.com/hunterad93/jail_roster)"
+USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 DEFAULT_TIMEOUT = 45
 DEFAULT_HEADERS = {"User-Agent": USER_AGENT}
 
