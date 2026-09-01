@@ -1,7 +1,9 @@
 import io
 import logging
+import os
 import re
 
+import httpx
 import pdfplumber
 
 from jail_roster.scrapers.base import Inmate, http_get
@@ -21,12 +23,26 @@ INMATE_RE = re.compile(
 )
 
 
+def _fetch_pdf() -> bytes:
+    api_key = os.environ.get("SCRAPER_API_KEY")
+    if api_key:
+        log.info("Using ScraperAPI proxy for %s", JAIL_NAME)
+        resp = httpx.get(
+            "https://api.scraperapi.com",
+            params={"api_key": api_key, "url": URL},
+            timeout=90,
+        )
+    else:
+        resp = http_get(URL)
+    resp.raise_for_status()
+    return resp.content
+
+
 def scrape() -> list[dict]:
     log.info("Scraping %s...", JAIL_NAME)
-    resp = http_get(URL)
-    resp.raise_for_status()
+    content = _fetch_pdf()
 
-    pdf = pdfplumber.open(io.BytesIO(resp.content))
+    pdf = pdfplumber.open(io.BytesIO(content))
 
     all_lines = []
     for page in pdf.pages:
