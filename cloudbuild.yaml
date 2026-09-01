@@ -37,6 +37,8 @@ steps:
       - '0'
       - '--max-instances'
       - '3'
+      - '--set-secrets'
+      - 'SCRAPER_API_KEY=SCRAPER_API_KEY:latest'
 
 images:
   - 'us-docker.pkg.dev/$PROJECT_ID/jail-roster/jail-roster'
